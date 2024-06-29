@@ -1,4 +1,5 @@
 use std::fmt;
+use std::rc::Rc;
 
 /// Nodes in the Abstract Syntax Tree
 ///
@@ -7,8 +8,8 @@ use std::fmt;
 /// Identifier:  x
 #[derive(Debug, PartialEq)]
 pub enum Node<'inp> {
-  Abstraction(Box<Abstraction<'inp>>),
-  Application(Box<Application<'inp>>),
+  Abstraction(Abstraction<'inp>),
+  Application(Application<'inp>),
   Identifier(Identifier<'inp>),
 }
 
@@ -16,13 +17,13 @@ pub enum Node<'inp> {
 #[derive(Debug, PartialEq)]
 pub struct Abstraction<'inp> {
   pub param: &'inp str,
-  pub body: Node<'inp>,
+  pub body: Rc<Node<'inp>>,
 }
 
 #[derive(Debug, PartialEq)]
 pub struct Application<'inp> {
-  pub lhs: Node<'inp>,
-  pub rhs: Node<'inp>,
+  pub lhs: Rc<Node<'inp>>,
+  pub rhs: Rc<Node<'inp>>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -47,35 +48,23 @@ mod tests {
 
   #[rstest]
   #[case(
-    Node::Application(Box::new(Application {
-      lhs: Node::Abstraction(Box::new(Abstraction {
+    Node::Application(Application {
+      lhs: Rc::new(Node::Abstraction(Abstraction {
         param: "x",
-        body: Node::Identifier(Identifier {
+        body: Rc::new(Node::Identifier(Identifier {
           name: "x",
-        }),
+        })),
       })),
-      rhs: Node::Abstraction(Box::new(Abstraction {
+      rhs: Rc::new(Node::Abstraction(Abstraction {
         param: "y",
-        body: Node::Identifier(Identifier {
+        body: Rc::new(Node::Identifier(Identifier {
           name: "y",
-        }),
+        })),
       })),
-    })),
+    }),
     "(λx. x) (λy. y)"
   )]
   fn simple_ast(#[case] ast: Node, #[case] expected_str: &str) {
-    let expected_ast = Node::Application(Box::new(Application {
-      lhs: Node::Abstraction(Box::new(Abstraction {
-        param: "x",
-        body: Node::Identifier(Identifier { name: "x" }),
-      })),
-      rhs: Node::Abstraction(Box::new(Abstraction {
-        param: "y",
-        body: Node::Identifier(Identifier { name: "y" }),
-      })),
-    }));
-
-    assert_eq!(ast, expected_ast);
     assert_eq!(ast.to_string(), expected_str);
   }
 }

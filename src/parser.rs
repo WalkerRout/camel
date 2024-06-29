@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use anyhow::anyhow;
 use thiserror::Error;
 
@@ -61,10 +63,10 @@ impl<'inp> Parser<'inp> {
     self.advance();
     self.expect(TokenKind::Dot)?;
     let body = self.parse_term()?;
-    Ok(Node::Abstraction(Box::new(Abstraction {
+    Ok(Node::Abstraction(Abstraction {
       param: param,
-      body,
-    })))
+      body: Rc::new(body),
+    }))
   }
 
   /// Parse an application, which is an application applied left-associatively to itself
@@ -83,7 +85,7 @@ impl<'inp> Parser<'inp> {
       Some(TokenKind::LowercaseId | TokenKind::LeftParen)
     ) {
       let rhs = self.parse_atom()?;
-      lhs = Node::Application(Box::new(Application { lhs, rhs }));
+      lhs = Node::Application(Application { lhs: Rc::new(lhs), rhs: Rc::new(rhs) });
     }
     Ok(lhs)
   }
@@ -157,23 +159,23 @@ mod tests {
   #[rstest]
   #[case(
     "(λx.x)(λy.(λa.a))",
-    Node::Application(Box::new(Application {
-      lhs: Node::Abstraction(Box::new(Abstraction {
+    Node::Application(Application {
+      lhs: Rc::new(Node::Abstraction(Abstraction {
         param: "x",
-        body: Node::Identifier(Identifier {
+        body: Rc::new(Node::Identifier(Identifier {
           name: "x",
-        }),
+        })),
       })),
-      rhs: Node::Abstraction(Box::new(Abstraction {
+      rhs: Rc::new(Node::Abstraction(Abstraction {
         param: "y",
-        body: Node::Abstraction(Box::new(Abstraction {
+        body: Rc::new(Node::Abstraction(Abstraction {
           param: "a",
-          body: Node::Identifier(Identifier {
+          body: Rc::new(Node::Identifier(Identifier {
             name: "a",
-          })
-        }))
+          })),
+        })),
       })),
-    })),
+    }),
     "(λx. x) (λy. (λa. a))"
   )]
   fn single_application(
@@ -191,29 +193,29 @@ mod tests {
   #[rstest]
   #[case(
     "(λx.x)(λy.y)(λabc.abc)",
-    Node::Application(Box::new(Application {
+    Node::Application(Application {
       // left associative
-      lhs: Node::Application(Box::new(Application {
-        lhs: Node::Abstraction(Box::new(Abstraction {
+      lhs: Rc::new(Node::Application(Application {
+        lhs: Rc::new(Node::Abstraction(Abstraction {
           param: "x",
-          body: Node::Identifier(Identifier {
+          body: Rc::new(Node::Identifier(Identifier {
             name: "x",
-          }),
+          })),
         })),
-        rhs: Node::Abstraction(Box::new(Abstraction {
+        rhs: Rc::new(Node::Abstraction(Abstraction {
           param: "y",
-          body: Node::Identifier(Identifier {
+          body: Rc::new(Node::Identifier(Identifier {
             name: "y",
-          }),
+          })),
         })),
       })),
-      rhs: Node::Abstraction(Box::new(Abstraction {
+      rhs: Rc::new(Node::Abstraction(Abstraction {
         param: "abc",
-        body: Node::Identifier(Identifier {
+        body: Rc::new(Node::Identifier(Identifier {
           name: "abc",
-        }),
+        })),
       })),
-    })),
+    }),
     "(λx. x) (λy. y) (λabc. abc)"
   )]
   fn double_application(
